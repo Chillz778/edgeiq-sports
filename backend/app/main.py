@@ -1,15 +1,17 @@
 from typing import Any
+import logging
 from time import monotonic
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from .providers import FootballProvider
 from .analysis import analyze
-from .config import _request_token
+from .config import _request_token, football_data_token
 
 app = FastAPI(title="EdgeIQ Sports API", version="0.1.0", description="Football fixture search and transparent statistical analysis")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["GET"], allow_headers=["*"])
 provider = FootballProvider()
 analysis_cache: dict[int, tuple[float, dict[str, Any]]] = {}
+logger = logging.getLogger(__name__)
 
 
 @app.middleware("http")
@@ -25,7 +27,8 @@ async def bind_worker_secrets(request, call_next):
 
 @app.get("/api/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    # Report only whether the provider credential exists; never expose its value.
+    return {"status": "ok", "football_data": "configured" if football_data_token() else "missing"}
 
 
 @app.get("/api/fixtures")
@@ -33,6 +36,7 @@ async def fixtures(q: str = Query(default="", max_length=120)) -> dict[str, Any]
     try:
         found = await provider.upcoming()
     except Exception as exc:
+        logger.exception("Live fixture request failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=502, detail="The football data provider is unavailable. Please retry shortly.") from exc
     query = q.strip().casefold()
     if query:
@@ -49,6 +53,7 @@ async def fixture_analysis(fixture_id: int) -> dict[str, Any]:
     try:
         found = await provider.upcoming()
     except Exception as exc:
+        logger.exception("Live analysis fixture lookup failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=502, detail="The football data provider is unavailable. Please retry shortly.") from exc
     fixture = next((f for f in found if f["id"] == fixture_id), None)
     if fixture is None:
@@ -56,6 +61,7 @@ async def fixture_analysis(fixture_id: int) -> dict[str, Any]:
     try:
         fixture = await provider.fixture_with_statistics(fixture)
     except Exception as exc:
+        logger.exception("Live analysis statistics request failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=502, detail="Fixture found, but the provider could not return its supporting statistics.") from exc
     result = analyze(fixture)
     analysis_cache[fixture_id] = (monotonic(), result)
