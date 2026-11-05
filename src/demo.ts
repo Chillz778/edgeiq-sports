@@ -1,0 +1,22 @@
+import type { Analysis, Fixture, Prediction } from './types'
+
+const kickoff = (days: number) => new Date(Date.now() + days * 86400000).toISOString()
+const stats = (home_goals_for: number, away_goals_for: number, home_goals_against: number, away_goals_against: number, home_corners: number, away_corners: number, home_cards: number, away_cards: number) => ({ home_goals_for, away_goals_for, home_goals_against, away_goals_against, home_corners, away_corners, home_cards, away_cards, home_xg: null, away_xg: null })
+export const demoFixtures: Fixture[] = [
+  { id: 1001, home: 'Arsenal', away: 'Chelsea', home_code: 'ARS', away_code: 'CHE', league: 'Premier League', country: 'England', kickoff: kickoff(1), venue: 'Demo venue', status: 'NS', source: 'Illustrative demo data', demo: true, stats: stats(1.9, 1.4, .9, 1.3, 6.1, 4.8, 1.8, 2.2) },
+  { id: 1002, home: 'Liverpool', away: 'Manchester City', home_code: 'LIV', away_code: 'MCI', league: 'Premier League', country: 'England', kickoff: kickoff(2), status: 'NS', source: 'Illustrative demo data', demo: true, stats: stats(2, 2.1, .8, .9, 6.3, 5.9, 1.7, 1.6) },
+  { id: 1003, home: 'Tottenham', away: 'Newcastle', home_code: 'TOT', away_code: 'NEW', league: 'Premier League', country: 'England', kickoff: kickoff(3), status: 'NS', source: 'Illustrative demo data', demo: true, stats: stats(1.8, 1.7, 1.4, 1.2, 5.6, 5.1, 2.1, 2.4) },
+  { id: 1004, home: 'Real Madrid', away: 'Barcelona', home_code: 'RMA', away_code: 'BAR', league: 'La Liga', country: 'Spain', kickoff: kickoff(4), status: 'NS', source: 'Illustrative demo data', demo: true, stats: stats(2.2, 1.9, .9, 1, 5.7, 5.3, 1.9, 2.3) },
+  { id: 1005, home: 'Inter', away: 'AC Milan', home_code: 'INT', away_code: 'MIL', league: 'Serie A', country: 'Italy', kickoff: kickoff(5), status: 'NS', source: 'Illustrative demo data', demo: true, stats: stats(1.8, 1.5, .8, 1.1, 5.8, 4.9, 2.2, 2.5) },
+]
+const p = (market: string, outcome: string, probability: number, note: string): Prediction => ({ market, outcome, probability, confidence: 'Low', note })
+export function demoAnalysis(fixture: Fixture): Analysis {
+  const s = fixture.stats
+  const home = s.home_goals_for ?? 1.3, away = s.away_goals_for ?? 1.1
+  const predictions = [p('Match result', `${fixture.home} win`, 42, 'Illustrative demo estimate'), p('Match result', 'Draw', 27, 'Illustrative demo estimate'), p('Match result', `${fixture.away} win`, 31, 'Illustrative demo estimate'), p('Double chance', `${fixture.home} or draw`, 69, 'Illustrative demo estimate'), p('Total goals', 'Over 2.5', 55, 'Illustrative demo estimate'), p('Total goals', 'Under 2.5', 45, 'Illustrative demo estimate'), p('Both teams to score', 'Yes', 54, 'Illustrative demo estimate'), p('Both teams to score', 'No', 46, 'Illustrative demo estimate'), p('First-half goals', 'Over 0.5', 61, 'Illustrative demo estimate'), p('Team goals', `${fixture.home} over 0.5`, 75, 'Illustrative demo estimate'), p('Team goals', `${fixture.away} over 0.5`, 66, 'Illustrative demo estimate'), p('Scoreline', '1–1', 12, 'Illustrative demo estimate')]
+  const poissonOver = (mean: number, threshold: number) => { let cdf = 0; let term = Math.exp(-mean); for (let k = 0; k < threshold; k++) { if (k > 0) term *= mean / k; cdf += term } return Math.round((1 - cdf) * 100) }
+  const corners = (s.home_corners ?? 5.5) + (s.away_corners ?? 4.5)
+  const cards = (s.home_cards ?? 2) + (s.away_cards ?? 2)
+  predictions.push(p('Corners total', 'Over 8.5', poissonOver(corners, 9), 'Illustrative Poisson count estimate; demo inputs only'), p('Corners total', 'Over 9.5', poissonOver(corners, 10), 'Illustrative Poisson count estimate; demo inputs only'), p('Corners total', 'Over 10.5', poissonOver(corners, 11), 'Illustrative Poisson count estimate; demo inputs only'), p('Cards total', 'Over 3.5', poissonOver(cards, 4), 'Illustrative Poisson count estimate; demo inputs only'), p('Cards total', 'Over 4.5', poissonOver(cards, 5), 'Illustrative Poisson count estimate; demo inputs only'))
+  return { fixture, predictions, summary: [`Illustrative input: ${fixture.home} at ${home.toFixed(1)} goals for per match.`, `Illustrative input: ${fixture.away} at ${away.toFixed(1)} goals for per match.`, 'These sample values are for preview only and do not represent verified team performance.'], data_quality: 'Local preview · illustrative sample data only; not live provider data.', model_version: 'Preview estimate v1', generated_at: new Date().toISOString() }
+}

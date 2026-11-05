@@ -1,0 +1,17 @@
+node_modules/
+.npm-cache/
+.venv/
+.tools/
+.python-runtime/
+.python-bin/
+.python-cache/
+.uv-cache/
+.tmp/
+uv-install.ps1
+backend/.env
+.env
+.dev.vars*
+.wrangler/
+__pycache__/
+*.py[cod]
+dist/
