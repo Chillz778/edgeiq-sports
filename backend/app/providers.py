@@ -90,12 +90,19 @@ class FootballProvider:
         retrieved = datetime.now(timezone.utc).isoformat()
         fixtures = []
         for match in (match for payload in payloads for match in payload.get("matches", [])):
-            home, away, comp = match.get("homeTeam", {}), match.get("awayTeam", {}), match.get("competition", {})
+            home = match.get("homeTeam") or {}
+            away = match.get("awayTeam") or {}
+            comp = match.get("competition") or {}
+            home_name = home.get("name") or home.get("shortName") or "Home team"
+            away_name = away.get("name") or away.get("shortName") or "Away team"
+            home_short = home.get("shortName") or home_name or "HOME"
+            away_short = away.get("shortName") or away_name or "AWAY"
+            area = match.get("area") or comp.get("area") or {}
             fixtures.append({
-                "id": match["id"], "home": home.get("name", "Home team"), "away": away.get("name", "Away team"),
-                "home_code": home.get("tla") or home.get("shortName", "HOME")[:3].upper(),
-                "away_code": away.get("tla") or away.get("shortName", "AWAY")[:3].upper(),
-                "league": comp.get("name", "Football"), "country": match.get("area", {}).get("name", comp.get("area", {}).get("name", "")),
+                "id": match["id"], "home": home_name, "away": away_name,
+                "home_code": home.get("tla") or home_short[:3].upper(),
+                "away_code": away.get("tla") or away_short[:3].upper(),
+                "league": comp.get("name") or "Football", "country": area.get("name", ""),
                 "kickoff": match.get("utcDate"), "venue": match.get("venue"), "status": match.get("status", "SCHEDULED"),
                 "source": "football-data.org", "data_retrieved_at": retrieved, "demo": False,
                 "home_team_id": home.get("id"), "away_team_id": away.get("id"), "competition_id": comp.get("id"),
