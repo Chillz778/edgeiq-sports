@@ -98,14 +98,23 @@ class FootballProvider:
             home_short = home.get("shortName") or home_name or "HOME"
             away_short = away.get("shortName") or away_name or "AWAY"
             area = match.get("area") or comp.get("area") or {}
+            # football-data.org exposes Spain's top flight under its legacy
+            # competition name, "Primera Division" (code PD). Use the familiar
+            # La Liga label in EdgeIQ while retaining the provider code for
+            # reliable competition identity.
+            competition_code = comp.get("code") or ""
+            competition_name = comp.get("name") or "Football"
+            if competition_code == "PD":
+                competition_name = "La Liga"
             fixtures.append({
                 "id": match["id"], "home": home_name, "away": away_name,
                 "home_code": home.get("tla") or home_short[:3].upper(),
                 "away_code": away.get("tla") or away_short[:3].upper(),
-                "league": comp.get("name") or "Football", "country": area.get("name", ""),
+                "league": competition_name, "country": area.get("name", ""),
                 "kickoff": match.get("utcDate"), "venue": match.get("venue"), "status": match.get("status", "SCHEDULED"),
                 "source": "football-data.org", "data_retrieved_at": retrieved, "demo": False,
                 "home_team_id": home.get("id"), "away_team_id": away.get("id"), "competition_id": comp.get("id"),
+                "competition_code": competition_code,
                 "stats": {"home_goals_for": None, "away_goals_for": None, "home_goals_against": None,
                           "away_goals_against": None, "home_corners": None, "away_corners": None,
                           "home_cards": None, "away_cards": None},

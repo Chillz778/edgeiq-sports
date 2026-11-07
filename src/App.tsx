@@ -13,13 +13,22 @@ export default function App() {
   const [fixtures, setFixtures] = useState<Fixture[]>([])
   const [search, setSearch] = useState('')
   const [league, setLeague] = useState(leagues[0])
+  const [todayOnly, setTodayOnly] = useState(false)
   const [selected, setSelected] = useState<Analysis | null>(null)
   const [previews, setPreviews] = useState<Record<number, Analysis | null>>({})
   const [loading, setLoading] = useState(true)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { getFixtures().then(r => { setFixtures(r.fixtures); if ('warning' in r && r.warning) setError(r.warning) }).catch(() => setError('Could not load fixtures. Check that the API server is running.')).finally(() => setLoading(false)) }, [])
-  const results = useMemo(() => { const q = search.toLowerCase().replace(/\b(vs|v|against)\b|[-–]/g, ' ').replace(/\s+/g, ' ').trim(); const priority: Record<string, number> = { 'UEFA Champions League': 0, 'UEFA Europa League': 1, 'FIFA World Cup': 2, 'European Championship': 3, 'Premier League': 4, 'La Liga': 5, 'Serie A': 6, Bundesliga: 7, 'Ligue 1': 8 }; return fixtures.filter(f => (league === 'All competitions' || f.league === league) && (!q || `${f.home} ${f.away} ${f.league} ${f.country}`.toLowerCase().includes(q))).sort((a, b) => (priority[a.league] ?? 9) - (priority[b.league] ?? 9) || a.kickoff.localeCompare(b.kickoff)) }, [fixtures, search, league])
+  const results = useMemo(() => {
+    const q = search.toLowerCase().replace(/\b(vs|v|against)\b|[-–]/g, ' ').replace(/\s+/g, ' ').trim()
+    const priority: Record<string, number> = { 'UEFA Champions League': 0, 'UEFA Europa League': 1, 'FIFA World Cup': 2, 'European Championship': 3, 'Premier League': 4, 'La Liga': 5, 'Serie A': 6, Bundesliga: 7, 'Ligue 1': 8 }
+    const localDateKey = (value: string) => { const d = new Date(value); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    return fixtures.filter(f => (league === 'All competitions' || f.league === league || (league === 'La Liga' && /primera\s+divisi[oó]n/i.test(f.league))) && (!todayOnly || localDateKey(f.kickoff) === today) && (!q || `${f.home} ${f.away} ${f.league} ${f.country}`.toLowerCase().includes(q)))
+      .sort((a, b) => (priority[a.league] ?? 9) - (priority[b.league] ?? 9) || a.kickoff.localeCompare(b.kickoff))
+  }, [fixtures, search, league, todayOnly])
   const featured = results.slice(0, 5)
   const featuredKey = featured.map(f => f.id).join(',')
   const heroFixture = featured[0]
@@ -55,9 +64,9 @@ export default function App() {
         </section>
         <section className="metrics-row"><Metric icon={<CalendarDays size={17}/>} label="FIXTURES TRACKED" value={String(fixtures.length).padStart(2, '0')} note="Upcoming matches"/><Metric icon={<Crosshair size={17}/>} label="MARKETS COVERED" value="04" note="Goals · result · totals"/><Metric icon={<ShieldCheck size={17}/>} label="DATA APPROACH" value="01" note="Transparent models"/><Metric icon={<TrendingUp size={17}/>} label="MODEL STATUS" value="LIVE" note="Estimates, not guarantees" live/></section>
         {error && <div className="error-banner">{error}</div>}
-        <section id="fixtures" className="fixtures-section"><div className="section-head"><div><div className="section-kicker">THE CALENDAR</div><h2>{search ? 'Search results' : 'Upcoming fixtures'} <span className="count-pill">{featured.length}</span></h2><p>Pick a fixture to explore the form, the data and the probabilities.</p></div><label className="league-select"><select value={league} onChange={e => setLeague(e.target.value)}>{leagues.map(l => <option key={l}>{l}</option>)}</select><ChevronDown size={14}/></label></div>
+        <section id="fixtures" className="fixtures-section"><div className="section-head"><div><div className="section-kicker">THE CALENDAR</div><h2>{search ? 'Search results' : todayOnly ? "Today's fixtures" : 'Upcoming fixtures'} <span className="count-pill">{featured.length}</span></h2><p>Pick a fixture to explore the form, the data and the probabilities.</p></div><div className="fixture-controls"><div className="date-filter" role="group" aria-label="Fixture date"><button type="button" className={!todayOnly ? 'selected' : ''} aria-pressed={!todayOnly} onClick={() => setTodayOnly(false)}>Upcoming</button><button type="button" className={todayOnly ? 'selected' : ''} aria-pressed={todayOnly} onClick={() => setTodayOnly(true)}><CalendarDays size={15}/> Today</button></div><label className="league-select"><select value={league} onChange={e => setLeague(e.target.value)}>{leagues.map(l => <option key={l}>{l}</option>)}</select><ChevronDown size={14}/></label></div></div>
           {loading ? <div className="loading-state"><span className="spinner"/> Gathering the latest fixtures…</div> : featured.length ? <div className="fixture-grid">{featured.map((f, i) => <FixtureCard key={f.id} fixture={f} index={i} preview={previews[f.id]} onClick={() => choose(f)} busy={analysisLoading}/>)}</div> : <div className="empty-state"><Search size={24}/><h3>No fixtures found</h3><p>Try a team name, league, or a different search.</p></div>}
-          <div className="section-foot"><span>Showing up to five featured fixtures</span><span>Kickoff times shown in your local timezone</span></div>
+          <div className="section-foot"><span>Showing up to five {todayOnly ? 'fixtures for today' : 'featured upcoming fixtures'}</span><span>Today and kickoff times use your local timezone</span></div>
         </section>
         <footer className="disclaimer"><span><ShieldCheck size={15}/></span><p><strong>A note on predictions</strong> Every probability is a statistical estimate based on available data. Football is unpredictable; no outcome is guaranteed.</p><button onClick={() => document.querySelector('#fixtures')?.scrollIntoView({ behavior: 'smooth' })}>ABOUT OUR APPROACH <ArrowRight size={13}/></button></footer>
       </>}
